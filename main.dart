@@ -1,79 +1,76 @@
-/* 演習3の解答例 */
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-void main() => runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: "My Simple App",
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text("Live!人工知能"),
-        ),
-        body: Center(
-          child: MyForm(),
-        ),
-      ),
+      title: "Dog Name Voting",
+      home: MyHomePage(),
     );
   }
 }
 
-class MyForm extends StatefulWidget {
+class MyHomePage extends StatefulWidget {
   @override
-  _MyFormState createState() => _MyFormState();
+  _MyHomePageState createState() {
+    return _MyHomePageState();
+  }
 }
 
-class _MyFormState extends State<MyForm> {
-  int _count = 0;
-
-  void _goodPressed() {
-    setState(() {
-      // 状態を保持する変数を変更する処理は、setState内に記述する
-      _count++;
-    });
-  }
-
-  void _badPressed() {
-    setState(() {
-      // 状態を保持する変数を変更する処理は、setState内に記述する
-      _count--;
-    });
-  }
-
+class _MyHomePageState extends State<MyHomePage> {
+  @override
   Widget build(BuildContext context) {
-    return Container(
-        child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Text(
-          "$_count",
-          style: TextStyle(
-            color: Colors.blueAccent,
-            fontSize: 30.0,
-          ),
+    return Scaffold(
+      appBar: AppBar(title: Text("Dog Name Voting")),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    return StreamBuilder<QuerySnapshot>(
+      // Streamを監視して、イベントが通知される度にWidgetを更新する
+      stream: FirebaseFirestore.instance.collection("dogs").snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return LinearProgressIndicator();
+        return _buildList(snapshot.data!.docs);
+      },
+    );
+  }
+
+  Widget _buildList(List<DocumentSnapshot> snapList) {
+    return ListView.builder(
+        padding: const EdgeInsets.all(18.0),
+        itemCount: snapList.length,
+        itemBuilder: (context, i) {
+          return _buildListItem(snapList[i]);
+        });
+  }
+
+  Widget _buildListItem(DocumentSnapshot snap) {
+    final Map<String, dynamic> data = snap.data() as Map<String, dynamic>;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 9.0),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(8.0),
         ),
-        FlatButton(
-          // 一番シンプルなボタン
-          onPressed: _goodPressed,
-          color: Colors.blue,
-          child: Text(
-            "いいね!",
-            style: TextStyle(color: Colors.white, fontSize: 20.0),
-          ),
+        child: ListTile(
+          title: Text(data["name"]),
+          trailing: Text(data["votes"].toString()),
+          onTap: () =>
+              snap.reference.update({"votes": FieldValue.increment(1)}),
         ),
-        FlatButton(
-          // 一番シンプルなボタン
-          onPressed: _badPressed,
-          color: Colors.red,
-          child: Text(
-            "やだね!",
-            style: TextStyle(color: Colors.white, fontSize: 20.0),
-          ),
-        )
-      ],
-    ));
+      ),
+    );
   }
 }
